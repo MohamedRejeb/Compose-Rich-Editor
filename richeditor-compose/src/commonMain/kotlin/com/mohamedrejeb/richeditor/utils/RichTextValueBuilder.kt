@@ -152,8 +152,7 @@ internal class RichTextValueBuilder {
 
         collapseParts(textLastIndex = newTextFieldValue.text.lastIndex)
 
-        return this
-            .setTextFieldValue(newTextFieldValue)
+        return this.setTextFieldValue(newTextFieldValue)
     }
 
     /**
@@ -163,7 +162,7 @@ internal class RichTextValueBuilder {
         return RichTextValue(
             textFieldValue = textFieldValue,
             currentStyles = currentStyles,
-            parts = parts,
+            parts = parts
         )
     }
 
@@ -174,7 +173,7 @@ internal class RichTextValueBuilder {
      * @param newTextFieldValue the new text field value.
      */
     private fun handleAddingCharacters(
-        newTextFieldValue: TextFieldValue,
+        newTextFieldValue: TextFieldValue
     ): TextFieldValue {
         var newTextFieldValue = newTextFieldValue
         var typedChars = newTextFieldValue.text.length - textFieldValue.text.length
@@ -182,18 +181,17 @@ internal class RichTextValueBuilder {
 
         // Workaround to add unordered list support, it's going to be changed in the future
         // when I'm going to add ordered list support but for now if it works, it works :D
-        if (
-            newTextFieldValue.text.getOrNull(startTypeIndex - 2) == '\n' &&
-            newTextFieldValue.text.getOrNull(startTypeIndex - 1) == '-' &&
-            newTextFieldValue.text.getOrNull(startTypeIndex) == ' '
+        if (newTextFieldValue.text.getOrNull(startTypeIndex - 2) == '\n' && newTextFieldValue.text.getOrNull(
+                startTypeIndex - 1
+            ) == '-' && newTextFieldValue.text.getOrNull(startTypeIndex) == ' '
         ) {
             var newText = newTextFieldValue.text
             newText = newText.removeRange(startTypeIndex - 1..startTypeIndex)
-            val firstHalf = newText.substring(0..startTypeIndex-2)
-            val secondHalf = newText.substring(startTypeIndex-1..newText.lastIndex)
-            val unorderedListPrefix = "  •  "
+            val firstHalf = newText.substring(0..startTypeIndex - 2)
+            val secondHalf = newText.substring(startTypeIndex - 1..newText.lastIndex)
+            val unorderedListPrefix = "• "
             newText = firstHalf + unorderedListPrefix + secondHalf
-            typedChars+=3
+            currentStyles += RichTextStyle.UnorderedListItem
             newTextFieldValue = newTextFieldValue.copy(
                 text = newText,
                 selection = TextRange(startTypeIndex + typedChars)
@@ -219,7 +217,7 @@ internal class RichTextValueBuilder {
                 moveParts(
                     fromIndex = startRichTextPartIndex + 1,
                     toIndex = parts.lastIndex,
-                    by = typedChars,
+                    by = typedChars
                 )
             }
         } else if (currentStyles == endRichTextPart?.styles) {
@@ -231,7 +229,7 @@ internal class RichTextValueBuilder {
                 moveParts(
                     fromIndex = endRichTextPartIndex + 1,
                     toIndex = parts.lastIndex,
-                    by = typedChars,
+                    by = typedChars
                 )
             }
         } else if (startRichTextPart == endRichTextPart && startRichTextPart != null) {
@@ -239,13 +237,15 @@ internal class RichTextValueBuilder {
                 toIndex = startTypeIndex - 1
             )
             parts.add(
-                startRichTextPartIndex + 1, startRichTextPart.copy(
+                startRichTextPartIndex + 1,
+                startRichTextPart.copy(
                     fromIndex = startTypeIndex + typedChars,
                     toIndex = startRichTextPart.toIndex + typedChars
                 )
             )
             parts.add(
-                startRichTextPartIndex + 1, RichTextPart(
+                startRichTextPartIndex + 1,
+                RichTextPart(
                     fromIndex = startTypeIndex,
                     toIndex = startTypeIndex + typedChars - 1,
                     styles = currentStyles
@@ -256,7 +256,7 @@ internal class RichTextValueBuilder {
                 moveParts(
                     fromIndex = startRichTextPartIndex + 3,
                     toIndex = parts.lastIndex,
-                    by = typedChars,
+                    by = typedChars
                 )
             }
         } else if (endRichTextPart == null) {
@@ -269,7 +269,8 @@ internal class RichTextValueBuilder {
             )
         } else {
             parts.add(
-                startRichTextPartIndex + 1, RichTextPart(
+                startRichTextPartIndex + 1,
+                RichTextPart(
                     fromIndex = startTypeIndex,
                     toIndex = startTypeIndex + typedChars - 1,
                     styles = currentStyles
@@ -280,10 +281,11 @@ internal class RichTextValueBuilder {
                 moveParts(
                     fromIndex = startRichTextPartIndex + 2,
                     toIndex = parts.lastIndex,
-                    by = typedChars,
+                    by = typedChars
                 )
             }
         }
+
         return newTextFieldValue
     }
 
@@ -305,31 +307,26 @@ internal class RichTextValueBuilder {
 
         parts.forEachIndexed { index, part ->
             if (removeRange.last < part.fromIndex) {
-                // Example: L|orem| ipsum *dolor* sit amet.
                 parts[index] = part.copy(
                     fromIndex = part.fromIndex - removedChars,
                     toIndex = part.toIndex - removedChars
                 )
             } else if (removeRange.first <= part.fromIndex && removeRange.last >= part.toIndex) {
-                // Example: Lorem| ipsum *dolor* si|t amet.
                 parts[index] = part.copy(
                     fromIndex = 0,
                     toIndex = 0
                 )
                 removedIndexes.add(index)
             } else if (removeRange.first <= part.fromIndex && removeRange.last < part.toIndex) {
-                // Example: Lorem| ipsum *dol|or* sit amet.
                 parts[index] = part.copy(
                     fromIndex = max(0, removeRange.first),
                     toIndex = min(newTextFieldValue.text.length, part.toIndex - removedChars)
                 )
             } else if (removeRange.first > part.fromIndex && removeRange.last <= part.toIndex) {
-                // Example: Lorem ipsum *d|olo|r* sit amet.
                 parts[index] = part.copy(
                     toIndex = part.toIndex - removedChars
                 )
             } else if (removeRange.first > part.fromIndex && removeRange.first < part.toIndex && removeRange.last > part.toIndex) {
-                // Example: Lorem ipsum *dol|or* si|t amet.
                 parts[index] = part.copy(
                     toIndex = removeRange.first
                 )
@@ -355,7 +352,7 @@ internal class RichTextValueBuilder {
         (start..end).forEach { index ->
             parts[index] = parts[index].copy(
                 fromIndex = parts[index].fromIndex + by,
-                toIndex = parts[index].toIndex + by,
+                toIndex = parts[index].toIndex + by
             )
         }
     }
@@ -419,7 +416,7 @@ internal class RichTextValueBuilder {
 
             parts[index] = parts[index].copy(
                 fromIndex = max(0, parts[index].fromIndex),
-                toIndex = min(textLastIndex, parts[index].toIndex),
+                toIndex = min(textLastIndex, parts[index].toIndex)
             )
         }
 
@@ -433,15 +430,12 @@ internal class RichTextValueBuilder {
     private fun updateCurrentStyles(
         newTextFieldValue: TextFieldValue
     ) {
-        val newStyles = parts
-            .firstOrNull {
-                if (newTextFieldValue.selection.min == 0 && it.fromIndex == 0) {
-                    return@firstOrNull true
-                }
-                (newTextFieldValue.selection.min - 1) in (it.fromIndex..it.toIndex)
+        val newStyles = parts.firstOrNull {
+            if (newTextFieldValue.selection.min == 0 && it.fromIndex == 0) {
+                return@firstOrNull true
             }
-            ?.styles
-            ?: currentStyles
+            (newTextFieldValue.selection.min - 1) in (it.fromIndex..it.toIndex)
+        }?.styles ?: currentStyles
 
         setCurrentStyles(newStyles.toSet())
     }
@@ -525,7 +519,7 @@ internal class RichTextValueBuilder {
                 parts.add(
                     index + 2,
                     part.copy(
-                        fromIndex = toIndex,
+                        fromIndex = toIndex
                     )
                 )
             } else if (part.fromIndex < fromIndex) {
@@ -536,7 +530,7 @@ internal class RichTextValueBuilder {
                     index + 1,
                     update(
                         part.copy(
-                            fromIndex = fromIndex,
+                            fromIndex = fromIndex
                         )
                     )
                 )
@@ -549,7 +543,7 @@ internal class RichTextValueBuilder {
                 parts.add(
                     index + 1,
                     part.copy(
-                        fromIndex = toIndex,
+                        fromIndex = toIndex
                     )
                 )
             } else {
@@ -563,26 +557,22 @@ internal class RichTextValueBuilder {
          * Creates a [RichTextValueBuilder] from a [String].
          */
         fun from(text: String): RichTextValueBuilder {
-            return RichTextValueBuilder()
-                .setTextFieldValue(TextFieldValue(text = text))
+            return RichTextValueBuilder().setTextFieldValue(TextFieldValue(text = text))
         }
 
         /**
          * Creates a [RichTextValueBuilder] from a [TextFieldValue].
          */
         fun from(textFieldValue: TextFieldValue): RichTextValueBuilder {
-            return RichTextValueBuilder()
-                .setTextFieldValue(textFieldValue)
+            return RichTextValueBuilder().setTextFieldValue(textFieldValue)
         }
 
         /**
          * Creates a [RichTextValueBuilder] from a [RichTextValue].
          */
         fun from(richTextValue: RichTextValue): RichTextValueBuilder {
-            return RichTextValueBuilder()
-                .setTextFieldValue(richTextValue.textFieldValue)
-                .setParts(richTextValue.parts)
-                .setCurrentStyles(richTextValue.currentStyles)
+            return RichTextValueBuilder().setTextFieldValue(richTextValue.textFieldValue)
+                .setParts(richTextValue.parts).setCurrentStyles(richTextValue.currentStyles)
         }
     }
 }

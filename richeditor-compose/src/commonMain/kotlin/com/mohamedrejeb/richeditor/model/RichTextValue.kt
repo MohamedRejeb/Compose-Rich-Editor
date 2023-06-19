@@ -2,11 +2,14 @@ package com.mohamedrejeb.richeditor.model
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.saveable.Saver
-import androidx.compose.ui.text.*
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.withStyle
 import com.mohamedrejeb.richeditor.annotation.ExperimentalRichTextApi
 import com.mohamedrejeb.richeditor.parser.annotatedstring.RichTextAnnotatedStringParser
 import com.mohamedrejeb.richeditor.parser.html.RichTextHtmlParser
@@ -22,9 +25,9 @@ import com.mohamedrejeb.richeditor.utils.RichTextValueBuilder
  */
 @Immutable
 data class RichTextValue internal constructor(
-    internal val textFieldValue: TextFieldValue,
+    val textFieldValue: TextFieldValue,
     val currentStyles: Set<RichTextStyle> = emptySet(),
-    internal val parts: List<RichTextPart> = emptyList(),
+    val parts: List<RichTextPart> = emptyList(),
 ) {
 
     /**
@@ -41,21 +44,38 @@ data class RichTextValue internal constructor(
     /**
      * The [AnnotatedString] representation of the text
      */
-    internal val annotatedString
-        get() = AnnotatedString(
-            text = textFieldValue.text,
-            spanStyles = parts.map { part ->
+    internal val annotatedString: AnnotatedString
+        get() = buildAnnotatedString {
+            var lastToIndex = 0
+            parts.forEach { part ->
+                if (part.fromIndex > lastToIndex) {
+                    // Append the text between the last part's end and the current part's start
+                    append(textFieldValue.text.substring(lastToIndex, part.fromIndex))
+                }
+
                 val spanStyle = part.styles.fold(SpanStyle()) { acc, style ->
                     style.applyStyle(acc)
                 }
+                withStyle(spanStyle) {
+                    append(textFieldValue.text.substring(part.fromIndex, part.toIndex + 1))
+                }
+                part.styles.filterIsInstance<RichTextStyle.Hyperlink>().forEach { hyperlink ->
+                    addStringAnnotation(
+                        tag = "URL",
+                        annotation = hyperlink.url,
+                        start = part.fromIndex,
+                        end = part.toIndex + 1
+                    )
+                }
 
-                AnnotatedString.Range(
-                    item = spanStyle,
-                    start = part.fromIndex,
-                    end = part.toIndex + 1,
-                )
+                lastToIndex = part.toIndex + 1
             }
-        )
+
+            if (lastToIndex < textFieldValue.text.length) {
+                // Append the remaining text after the last part
+                append(textFieldValue.text.substring(lastToIndex))
+            }
+        }
 
     constructor(
         text: String = "",

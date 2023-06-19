@@ -1,13 +1,33 @@
 package com.mohamedrejeb.richeditor.sample.common.richeditor
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -19,19 +39,25 @@ import com.mohamedrejeb.richeditor.ui.material3.OutlinedRichTextEditor
 import com.mohamedrejeb.richeditor.ui.material3.RichText
 import com.mohamedrejeb.richeditor.ui.material3.RichTextEditor
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun RichEditorContent() {
+fun RichEditorContent(content: String,onValueChange: (String) -> Unit) {
     val navigator = LocalNavigator.currentOrThrow
-
-    var basicRichTextValue by remember { mutableStateOf(RichTextValue()) }
-    var richTextValue by remember { mutableStateOf(
-        RichTextValue.from(
-            """
-            <p><b>RichTextEditor</b> is a <i>composable</i> that allows you to edit <u>rich text</u> content.</p>
-            """.trimIndent()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var basicRichTextValue by remember {
+        mutableStateOf(
+            RichTextValue.from(
+                content
+            )
         )
-    ) }
+    }
+    var richTextValue by remember {
+        mutableStateOf(
+            RichTextValue.from(
+                content
+            )
+        )
+    }
     var outlinedRichTextValue by remember { mutableStateOf(RichTextValue()) }
 
     ComposeRichEditorTheme {
@@ -55,11 +81,15 @@ fun RichEditorContent() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValue)
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState()).clickable(
+                        interactionSource = MutableInteractionSource(),
+                        indication = null,
+                        onClick = { keyboardController?.hide() }
+                    )
             ) {
                 // BasicRichTextEditor
                 Text(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     text = "BasicRichTextEditor:",
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -67,15 +97,16 @@ fun RichEditorContent() {
                 Spacer(Modifier.height(8.dp))
 
                 RichTextStyleRow(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     value = basicRichTextValue,
                     onValueChanged = {
                         basicRichTextValue = it
+                        onValueChange(it.toHtml())
                     },
                 )
 
                 BasicRichTextEditor(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     value = basicRichTextValue,
                     onValueChange = {
                         basicRichTextValue = it
@@ -86,6 +117,7 @@ fun RichEditorContent() {
 
                 // RichTextEditor
                 Text(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     text = "RichTextEditor:",
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -93,7 +125,7 @@ fun RichEditorContent() {
                 Spacer(Modifier.height(8.dp))
 
                 RichTextStyleRow(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     value = richTextValue,
                     onValueChanged = {
                         richTextValue = it
@@ -101,7 +133,7 @@ fun RichEditorContent() {
                 )
 
                 RichTextEditor(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     value = richTextValue,
                     onValueChange = {
                         richTextValue = it
@@ -112,6 +144,7 @@ fun RichEditorContent() {
 
                 // OutlinedRichTextEditor
                 Text(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     text = "OutlinedRichTextEditor:",
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -119,7 +152,7 @@ fun RichEditorContent() {
                 Spacer(Modifier.height(8.dp))
 
                 RichTextStyleRow(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     value = outlinedRichTextValue,
                     onValueChanged = {
                         outlinedRichTextValue = it
@@ -127,7 +160,7 @@ fun RichEditorContent() {
                 )
 
                 OutlinedRichTextEditor(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     value = outlinedRichTextValue,
                     onValueChange = {
                         outlinedRichTextValue = it
@@ -138,6 +171,7 @@ fun RichEditorContent() {
 
                 // RichText
                 Text(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     text = "RichText:",
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -145,7 +179,7 @@ fun RichEditorContent() {
                 Spacer(Modifier.height(8.dp))
 
                 RichText(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
                     richText = richTextValue,
                 )
             }

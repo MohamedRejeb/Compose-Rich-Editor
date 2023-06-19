@@ -2,7 +2,6 @@ package com.mohamedrejeb.richeditor.model
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
@@ -101,8 +100,8 @@ interface RichTextStyle {
             return spanStyle.copy(
                 baselineShift = BaselineShift.Superscript,
                 fontSize =
-                    if (spanStyle.fontSize.isSpecified) spanStyle.fontSize * 0.8f
-                    else TextUnit.Unspecified
+                if (spanStyle.fontSize.isSpecified) spanStyle.fontSize * 0.8f
+                else TextUnit.Unspecified
             )
         }
     }
@@ -118,8 +117,8 @@ interface RichTextStyle {
             return spanStyle.copy(
                 baselineShift = BaselineShift.Subscript,
                 fontSize =
-                    if (spanStyle.fontSize.isSpecified) spanStyle.fontSize * 0.8f
-                    else TextUnit.Unspecified
+                if (spanStyle.fontSize.isSpecified) spanStyle.fontSize * 0.8f
+                else TextUnit.Unspecified
             )
         }
     }
@@ -134,8 +133,8 @@ interface RichTextStyle {
         override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
             return spanStyle.copy(
                 fontSize =
-                    if (spanStyle.fontSize.isSpecified) spanStyle.fontSize * 0.8f
-                    else TextUnit.Unspecified
+                if (spanStyle.fontSize.isSpecified) spanStyle.fontSize * 0.8f
+                else TextUnit.Unspecified
             )
         }
     }
@@ -245,6 +244,21 @@ interface RichTextStyle {
     }
 
     /**
+     * [Normal] implementation of [RichTextStyle] that applies a H6 style to the text.
+     *
+     * @see RichTextStyle
+     * @see <a href="https://www.w3schools.com/tags/tag_hn.asp">H6</a>
+     */
+    object Normal : RichTextStyle {
+        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+            return spanStyle.copy(
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
+            )
+        }
+    }
+
+    /**
      * [TextColor] implementation of [RichTextStyle] that applies a color to the text.
      * @param color the color to apply.
      * @see RichTextStyle
@@ -282,4 +296,66 @@ interface RichTextStyle {
             )
         }
     }
+
+
+    /**
+     * [Hyperlink] implementation of [RichTextStyle] that applies hyperlink to the text.
+     * @param url is the link present in href="<Link>"
+     */
+    data class Hyperlink(val url: String) : RichTextStyle {
+        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+            return spanStyle.copy(
+                color = Color(0xFF5C8AFF),  // Blue color
+                textDecoration = TextDecoration.Underline
+            )
+        }
+    }
+
+    /**
+     * [UnorderedList] implementation of [RichTextStyle] that applies an unordered list style to the text.
+     * Note: This implementation only prepends a bullet symbol. Actual list functionality may require additional logic.
+     *
+     * @see RichTextStyle
+     * @see <a href="https://www.w3schools.com/tags/tag_ul.asp">Unordered List</a>
+     */
+    object UnorderedList : RichTextStyle {
+        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+            return spanStyle
+        }
+    }
+
+    /**
+     * [UnorderedList] implementation of [RichTextStyle] that applies an unordered list style to the text.
+     * Note: This implementation only prepends a bullet symbol. Actual list functionality may require additional logic.
+     *
+     * @see RichTextStyle
+     * @see <a href="https://www.w3schools.com/tags/tag_ol.asp">Unordered List</a>
+     */
+    object OrderedList : RichTextStyle {
+        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+            return spanStyle
+        }
+    }
+
+    object UnorderedListItem : RichTextStyle {
+
+        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+            // Prepend a bullet symbol to the text of the list item.
+            return spanStyle
+        }
+    }
+
+    /**
+     * [OrderedListItem] implementation of [RichTextStyle] that applies an ordered list item style to the text.
+     *
+     * @param position the position of the item in the ordered list.
+     * @see RichTextStyle
+     */
+    data class OrderedListItem(val position: Int) : RichTextStyle {
+        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+            return spanStyle
+        }
+    }
+
+
 }

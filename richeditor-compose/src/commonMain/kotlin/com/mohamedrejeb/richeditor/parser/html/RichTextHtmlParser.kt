@@ -16,17 +16,35 @@ internal object RichTextHtmlParser : RichTextParser<String> {
         var text = ""
         val currentStyles: MutableList<RichTextStyle> = mutableListOf()
         val parts: MutableList<RichTextPart> = mutableListOf()
-
+        var listCounter = 1
+        val listStyleStack: MutableList<RichTextStyle> = mutableListOf()
         val handler = KsoupHtmlHandler
             .Builder()
             .onText {
                 val lastOpenedTag = openedTags.lastOrNull()?.first
                 if (lastOpenedTag in skippedHtmlElements) return@onText
 
-                val addedText = removeHtmlTextExtraSpaces(
+                var addedText = removeHtmlTextExtraSpaces(
                     input = it,
                     trimStart = text.lastOrNull() == ' ' || text.lastOrNull() == '\n',
                 )
+
+                // Check the last style in the currentStyles list
+                // Go through all currentStyles and apply them
+                for (style in currentStyles) {
+                    when (style) {
+                        is RichTextStyle.UnorderedListItem -> {
+                            // Add bullet point at start if style is UnorderedListItem
+                            addedText = "\u2022 $addedText"
+                        }
+
+                        is RichTextStyle.OrderedListItem -> {
+                            // Add index at start if style is OrderedListItem
+                            addedText = "${style.position}. $addedText"
+                        }
+                    }
+                }
+
                 text += addedText
 
                 parts.add(
@@ -38,21 +56,37 @@ internal object RichTextHtmlParser : RichTextParser<String> {
                 )
             }
             .onOpenTag { name, attributes, _ ->
+                if (name == "br") {
+                    text += "\n"
+                    return@onOpenTag
+                }
                 openedTags.add(name to attributes)
 
-                val cssStyleMap = attributes["style"]?.let { CssEncoder.parseCssStyle(it) } ?: emptyMap()
+                val cssStyleMap =
+                    attributes["style"]?.let { CssEncoder.parseCssStyle(it) } ?: emptyMap()
                 val cssSpanStyle = CssEncoder.parseCssStyleMapToSpanStyle(cssStyleMap)
                 val richTextStyle = htmlElementsStyleEncodeMap[name]
 
                 if (cssSpanStyle != SpanStyle() || richTextStyle != null) {
-                    val tagRichTextStyle = object : RichTextStyle {
-                        override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
-                            val tagSpanStyle = richTextStyle?.applyStyle(spanStyle) ?: spanStyle
-                            return tagSpanStyle.merge(cssSpanStyle)
+                    when (name) {
+                        "h1" -> currentStyles.add(RichTextStyle.H1)
+                        "h2" -> currentStyles.add(RichTextStyle.H2)
+                        "h3" -> currentStyles.add(RichTextStyle.H3)
+                        "h4" -> currentStyles.add(RichTextStyle.H4)
+                        "h5" -> currentStyles.add(RichTextStyle.H5)
+                        "h6" -> currentStyles.add(RichTextStyle.H6)
+                        else -> {
+                            val tagRichTextStyle = object : RichTextStyle {
+                                override fun applyStyle(spanStyle: SpanStyle): SpanStyle {
+                                    val tagSpanStyle =
+                                        richTextStyle?.applyStyle(spanStyle) ?: spanStyle
+                                    return tagSpanStyle.merge(cssSpanStyle)
+                                }
+                            }
+
+                            currentStyles.add(tagRichTextStyle)
                         }
                     }
-
-                    currentStyles.add(tagRichTextStyle)
                 }
 
                 if (
@@ -64,34 +98,97 @@ internal object RichTextHtmlParser : RichTextParser<String> {
                 }
 
                 when (name) {
-                    "br" -> {
-                        text += "\n"
+                    in htmlBlockElements -> {
+                        when (name) {
+                            "li" -> {
+                                val listStyle = listStyleStack.lastOrNull()
+                                if (listStyle != null) {
+                                    val listItemStyle = when (listStyle) {
+                                        RichTextStyle.OrderedList -> RichTextStyle.OrderedListItem(
+                                            listCounter++
+                                        )
+
+                                        RichTextStyle.UnorderedList -> RichTextStyle.UnorderedListItem
+                                        else -> null
+                                    }
+                                    if (listItemStyle != null) {
+                                        currentStyles.add(listItemStyle)
+                                    }
+                                }
+                            }
+
+                            "ol" -> {
+                                listStyleStack.add(RichTextStyle.OrderedList)
+                            }
+
+                            "ul" -> {
+                                listStyleStack.add(RichTextStyle.UnorderedList)
+                            }
+                        }
+                    }
+
+                    in htmlInlineElements -> {
+                        if (name == "a") {
+                            val href = attributes["href"] ?: ""
+                            currentStyles.add(RichTextStyle.Hyperlink(href))
+                        }
                     }
                 }
+
+
             }
             .onCloseTag { name, _ ->
                 openedTags.removeLastOrNull()
+
                 currentStyles.removeLastOrNull()
 
-                if (name in htmlBlockElements) {
-                    text += "\n"
-                }
-
                 when (name) {
-                    "br" -> {
+                    // If it's a heading, add a new line after the closing tag
+
+                    in setOf("h1", "h2", "h3", "h4", "h5", "h6") -> {
                         text += "\n"
                     }
+
+                    in htmlBlockElements -> {
+                        when (name) {
+                            "li" -> {
+                                val listStyle = listStyleStack.lastOrNull()
+                                if (listStyle is RichTextStyle.OrderedList || listStyle is RichTextStyle.UnorderedList) {
+                                    currentStyles.removeLastOrNull()
+                                }
+                            }
+
+                            "ol" -> {
+                                listStyleStack.removeLastOrNull()
+                                if (listStyleStack.none { it is RichTextStyle.OrderedList }) {
+                                    listCounter = 1
+                                }
+                            }
+
+                            "ul" -> {
+                                listStyleStack.removeLastOrNull()
+                            }
+                        }
+                        text += "\n"
+                    }
+
+                    in htmlInlineElements -> {
+                        if (name == "a") {
+                            text += " "
+                        }
+                        currentStyles.removeLastOrNull()
+                    }
+
                 }
             }
+
             .build()
 
         val parser = KsoupHtmlParser(
             handler = handler
         )
-
         parser.write(input)
         parser.end()
-
         return RichTextValue(
             textFieldValue = TextFieldValue(text),
             currentStyles = currentStyles.toSet(),
@@ -104,34 +201,135 @@ internal object RichTextHtmlParser : RichTextParser<String> {
         val parts = richTextValue.parts.sortedBy { it.fromIndex }
 
         val builder = StringBuilder()
-
+        var openedListTag: String? = null
         for (part in parts) {
-            val partText = text.substring(part.fromIndex, part.toIndex + 1).replace("\n", "<br>")
+            // ensure indices are valid before calling substring
+            if (part.fromIndex < 0 || part.toIndex >= text.length) {
+                continue
+            }
+            val partText: String
             val partStyles = part.styles.toMutableSet()
 
-            val tagName = partStyles
-                .firstOrNull { htmlElementsStyleDecodeMap.containsKey(it) }
-                ?.let {
-                    partStyles.remove(it)
-                    htmlElementsStyleDecodeMap[it]
-                }
-                ?: if (part.fromIndex > 0 && text[part.fromIndex - 1] != '\n') "span" else "p"
+            var tagName: String
+            var tagStyle = ""
 
-            val tagStyle =
-                if (partStyles.isEmpty()) ""
-                else {
+            val hyperlinkStyle: RichTextStyle.Hyperlink? =
+                partStyles.filterIsInstance<RichTextStyle.Hyperlink>().firstOrNull()
+            partStyles.removeAll { it is RichTextStyle.Hyperlink }
+
+            if (partStyles.any { it is RichTextStyle.UnorderedListItem || it is RichTextStyle.OrderedListItem }) {
+                val listItemStyle =
+                    partStyles.first { it is RichTextStyle.UnorderedListItem || it is RichTextStyle.OrderedListItem }
+
+                if (listItemStyle is RichTextStyle.UnorderedListItem) {
+                    tagName = "li"
+                    partText = if (text.substring(
+                            part.fromIndex, part.toIndex + 1,
+                        ).startsWith("• ")
+                    ) {
+                        text.substring(
+                            part.fromIndex + "• ".length,
+                            part.toIndex + 1
+                        ).replace("\n", "<br>")
+                    } else {
+                        text.substring(
+                            part.fromIndex,
+                            part.toIndex + 1
+                        ).replace("\n", "<br>")
+                    }
+                    if (openedListTag != "ul") {
+                        if (openedListTag != null) {
+                            builder.append("</$openedListTag>")
+                        }
+                        openedListTag = "ul"
+                        builder.append("<$openedListTag>")
+                    }
+                } else if (listItemStyle is RichTextStyle.OrderedListItem) {
+                    tagName = "li"
+                    partText = if (text.substring(
+                            part.fromIndex, part.toIndex + 1,
+                        ).startsWith("${listItemStyle.position}")
+                    ) {
+                        text.substring(
+                            part.fromIndex + "${listItemStyle.position}.".length,
+                            part.toIndex + 1
+                        ).replace("\n", "<br>")
+                    } else {
+                        text.substring(
+                            part.fromIndex,
+                            part.toIndex + 1
+                        ).replace("\n", "<br>")
+                    }
+                    if (openedListTag != "ol") {
+                        if (openedListTag != null) {
+                            builder.append("</$openedListTag>")
+                        }
+                        openedListTag = "ol"
+                        builder.append("<$openedListTag>")
+                    }
+                } else {
+                    continue
+                }
+
+                partStyles.remove(listItemStyle)
+
+                builder.append("<$tagName$tagStyle>")
+
+                if (hyperlinkStyle != null) {
+                    builder.append("<a href=\"${hyperlinkStyle.url}\">")
+                }
+
+                builder.append(partText.replace("\n", "<br>"))
+
+                if (hyperlinkStyle != null) {
+                    builder.append("</a>")
+                }
+                builder.append("</$tagName>")  // closing the <li> tag
+
+            } else if (hyperlinkStyle != null) {
+                tagName = "a"
+                tagStyle = " href=\"${hyperlinkStyle.url}\""
+                partStyles.remove(hyperlinkStyle)
+                partText = text.substring(part.fromIndex, part.toIndex + 1).replace("\n", "<br>")
+                builder.append("<$tagName$tagStyle>$partText</$tagName>")
+            } else {
+                if (openedListTag != null) {
+                    builder.append("</$openedListTag>")
+                    openedListTag = null
+                }
+
+                tagName =
+                    partStyles
+                        .firstOrNull { htmlElementsStyleDecodeMap.containsKey(it) }
+                        ?.let {
+                            partStyles.remove(it)
+                            htmlElementsStyleDecodeMap[it]
+                        }
+                        ?: if (part.fromIndex > 0 && text[part.fromIndex - 1] != '\n') "span" else "p"
+                partText = text.substring(part.fromIndex, part.toIndex + 1).replace("\n", "<br>")
+
+                tagStyle = if (partStyles.isEmpty()) "" else {
                     val stylesToApply = partStyles
                         .fold(SpanStyle()) { acc, richTextStyle -> richTextStyle.applyStyle(acc) }
 
                     val cssStyleMap = CssDecoder.decodeSpanStyleToCssStyleMap(stylesToApply)
                     " style=\"${CssDecoder.decodeCssStyleMap(cssStyleMap)}\""
                 }
+                builder.append("<$tagName$tagStyle>${partText}</$tagName>")
+            }
+            // If it's a heading, add a new line after the closing tag
+            if (tagName in setOf("h1", "h2", "h3", "h4", "h5", "h6")) {
+                builder.append("<br>")
+            }
+        }
 
-            builder.append("<$tagName$tagStyle>$partText</$tagName>")
+        if (openedListTag != null) {
+            builder.append("</$openedListTag>")
         }
 
         return builder.toString()
     }
+
 
     /**
      * Removes extra spaces from the given input. Because in HTML, extra spaces are ignored as well as new lines.
@@ -155,9 +353,38 @@ internal object RichTextHtmlParser : RichTextParser<String> {
      * @see <a href="https://www.w3schools.com/html/html_blocks.asp">HTML blocks</a>
      */
     private val htmlInlineElements = setOf(
-        "a", "abbr", "acronym", "b", "bdo", "big", "br", "button", "cite", "code", "dfn", "em", "i", "img", "input",
-        "kbd", "label", "map", "object", "q", "samp", "script", "select", "small", "span", "strong", "sub", "sup",
-        "textarea", "time", "tt", "var"
+        "a",
+        "abbr",
+        "acronym",
+        "b",
+        "bdo",
+        "big",
+        "br",
+        "button",
+        "cite",
+        "code",
+        "dfn",
+        "em",
+        "i",
+        "img",
+        "input",
+        "kbd",
+        "label",
+        "map",
+        "object",
+        "q",
+        "samp",
+        "script",
+        "select",
+        "small",
+        "span",
+        "strong",
+        "sub",
+        "sup",
+        "textarea",
+        "time",
+        "tt",
+        "var"
     )
 
     /**
@@ -166,9 +393,40 @@ internal object RichTextHtmlParser : RichTextParser<String> {
      * @see <a href="https://www.w3schools.com/html/html_blocks.asp">HTML blocks</a>
      */
     private val htmlBlockElements = setOf(
-        "address", "article", "aside", "blockquote", "canvas", "dd", "div", "dl", "fieldset", "figcaption",
-        "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "li", "main", "nav",
-        "noscript", "ol", "p", "pre", "section", "table", "tfoot", "ul", "video"
+        "address",
+        "article",
+        "aside",
+        "blockquote",
+        "canvas",
+        "dd",
+        "div",
+        "dl",
+        "fieldset",
+        "figcaption",
+        "figure",
+        "footer",
+        "form",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "header",
+        "hgroup",
+        "hr",
+        "li",
+        "main",
+        "nav",
+        "noscript",
+        "ol",
+        "p",
+        "pre",
+        "section",
+        "table",
+        "tfoot",
+        "ul",
+        "video"
     )
 
     /**
@@ -177,6 +435,12 @@ internal object RichTextHtmlParser : RichTextParser<String> {
      * @see <a href="https://www.w3schools.com/html/html_formatting.asp">HTML formatting</a>
      */
     private val htmlElementsStyleEncodeMap = mapOf(
+        "h1" to RichTextStyle.H1,
+        "h2" to RichTextStyle.H2,
+        "h3" to RichTextStyle.H3,
+        "h4" to RichTextStyle.H4,
+        "h5" to RichTextStyle.H5,
+        "h6" to RichTextStyle.H6,
         "b" to RichTextStyle.Bold,
         "strong" to RichTextStyle.Bold,
         "i" to RichTextStyle.Italic,
@@ -189,12 +453,6 @@ internal object RichTextHtmlParser : RichTextParser<String> {
         "sup" to RichTextStyle.Superscript,
         "mark" to RichTextStyle.Mark,
         "small" to RichTextStyle.Small,
-        "h1" to RichTextStyle.H1,
-        "h2" to RichTextStyle.H2,
-        "h3" to RichTextStyle.H3,
-        "h4" to RichTextStyle.H4,
-        "h5" to RichTextStyle.H5,
-        "h6" to RichTextStyle.H6,
     )
 
     /**
@@ -203,6 +461,12 @@ internal object RichTextHtmlParser : RichTextParser<String> {
      * @see <a href="https://www.w3schools.com/html/html_formatting.asp">HTML formatting</a>
      */
     private val htmlElementsStyleDecodeMap = mapOf(
+        RichTextStyle.H1 to "h1",
+        RichTextStyle.H2 to "h2",
+        RichTextStyle.H3 to "h3",
+        RichTextStyle.H4 to "h4",
+        RichTextStyle.H5 to "h5",
+        RichTextStyle.H6 to "h6",
         RichTextStyle.Bold to "b",
         RichTextStyle.Italic to "i",
         RichTextStyle.Underline to "u",
@@ -211,12 +475,8 @@ internal object RichTextHtmlParser : RichTextParser<String> {
         RichTextStyle.Superscript to "sup",
         RichTextStyle.Mark to "mark",
         RichTextStyle.Small to "small",
-        RichTextStyle.H1 to "h1",
-        RichTextStyle.H2 to "h2",
-        RichTextStyle.H3 to "h3",
-        RichTextStyle.H4 to "h4",
-        RichTextStyle.H5 to "h5",
-        RichTextStyle.H6 to "h6",
+        RichTextStyle.UnorderedList to "ul",
+        RichTextStyle.UnorderedListItem to "li"
     )
 
     /**

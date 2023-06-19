@@ -1,6 +1,6 @@
 package com.mohamedrejeb.richeditor.sample.common.components
 
-import androidx.compose.foundation.layout.Row
+
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Circle
@@ -84,6 +84,26 @@ fun RichTextStyleRow(
                 onValueChanged = onValueChanged,
                 icon = Icons.Outlined.Circle,
                 tint = Color.Green
+            )
+        }
+
+        item {
+            RichTextStyleButton(
+                style = CustomStyle(color = Color.Blue, background = Color.Green),
+                value = value,
+                onValueChanged = onValueChanged,
+                icon = Icons.Outlined.Circle,
+                tint = Color.Green
+            )
+        }
+
+        item {
+            RichTextStyleButton(
+                style = CustomStyle(color = Color.Blue, background = Color.Blue),
+                value = value,
+                onValueChanged = onValueChanged,
+                icon = Icons.Outlined.Link,
+                tint = Color.Gray
             )
         }
     }
