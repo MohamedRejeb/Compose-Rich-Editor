@@ -66,7 +66,7 @@ class RichTextState internal constructor(
 
     internal var singleParagraphMode by mutableStateOf(false)
 
-    internal var textLayoutResult: TextLayoutResult? by mutableStateOf(null)
+    var textLayoutResult: TextLayoutResult? by mutableStateOf(null)
         private set
 
     private var lastPressPosition: Offset? by mutableStateOf(null)
@@ -1901,7 +1901,7 @@ class RichTextState internal constructor(
         return richSpan?.style is RichSpanStyle.Link
     }
 
-    private fun getRichSpanByOffset(offset: Offset): RichSpan? {
+    fun getRichSpanByOffset(offset: Offset): RichSpan? {
         this.textLayoutResult?.let { textLayoutResult ->
             val position = textLayoutResult.getOffsetForPosition(offset)
             return getRichSpanByTextIndex(position, true)

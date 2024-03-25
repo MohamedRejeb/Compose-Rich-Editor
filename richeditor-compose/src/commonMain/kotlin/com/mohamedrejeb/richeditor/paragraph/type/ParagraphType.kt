@@ -3,7 +3,7 @@ package com.mohamedrejeb.richeditor.paragraph.type
 import androidx.compose.ui.text.ParagraphStyle
 import com.mohamedrejeb.richeditor.model.RichSpan
 
-internal interface ParagraphType {
+interface ParagraphType {
 
     val style: ParagraphStyle
 
