@@ -1,23 +1,24 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.androidLibrary)
 }
 
 kotlin {
     applyDefaultHierarchyTemplate()
+    jvmToolchain(11)
     androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "1.8"
-            }
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_1_8)
         }
     }
-    jvm("desktop") {
-        jvmToolchain(11)
-    }
+    jvm("desktop")
     js(IR) {
         browser()
     }

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.androidApplication)
 }
@@ -16,12 +17,8 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
-
     buildFeatures {
         compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
