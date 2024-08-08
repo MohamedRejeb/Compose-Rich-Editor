@@ -451,6 +451,20 @@ public class RichTextState internal constructor(
     }
 
     /**
+     * Clear all [SpanStyle]s.
+     */
+    public fun clearSpanStyles() {
+        removeSpanStyle(currentSpanStyle)
+    }
+
+    /**
+     * Clear all [SpanStyle]s from a specific [TextRange].
+     */
+    public fun clearSpanStyles(textRange: TextRange) {
+        removeSpanStyle(currentSpanStyle, textRange)
+    }
+
+    /**
      * Add a link to the text field.
      * The link is going to be added after the current selection.
      *
@@ -715,6 +729,20 @@ public class RichTextState internal constructor(
         toRemoveRichSpanStyleKClass = spanStyle::class
 
         applyRichSpanStyleToTextRange(textRange)
+    }
+
+    /**
+     * Clear all [RichSpanStyle]s.
+     */
+    public fun clearRichSpans() {
+        removeRichSpan(currentRichSpanStyle)
+    }
+
+    /**
+     * Clear all [RichSpanStyle]s from a specific [TextRange].
+     */
+    public fun clearRichSpans(textRange: TextRange) {
+        removeRichSpan(currentRichSpanStyle, textRange)
     }
 
     /**
